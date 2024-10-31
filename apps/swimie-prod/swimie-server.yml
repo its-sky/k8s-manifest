@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swimie-server
+  labels:
+    app: swimie-server
+  namespace: swimie-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: swimie-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  revisionHistoryLimit: 4
+  template:
+    metadata:
+      labels:
+        app: swimie-server
+    spec:
+      serviceAccountName: swimie-account
+      nodeSelector:
+        phase: prod
+      tolerations:
+        - effect: NoSchedule
+          key: phase
+          operator: Equal
+          value: prod
+      containers:
+      - image: appuappu/production
+        name: swimie-server
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        ports:
+          - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /depromeet-actuator/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          httpGet:
+            path: /depromeet-actuator/health
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: swimie-prod
+  name: swimie-server
+spec:
+  type: ClusterIP
+  selector:
+    app: swimie-server
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: swimie-account
+  namespace: swimie-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: swimie-prod
+  name: swimie-prod-role
+rules:
+- apiGroups: [""]
+  verbs: ["get", "list"]
+  resources: ["pods"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: swimie-prod
+  name: swimie-prod-rb
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: swimie-prod-role
+subjects:
+- kind: ServiceAccount
+  name: swimie-account
+  namespace: swimie-prod
