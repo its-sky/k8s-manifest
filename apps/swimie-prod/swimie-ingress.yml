@@ -4,10 +4,13 @@ metadata:
   name: swimie-ingress
   namespace: swimie-prod
   annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-nginx
+	nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: nginx
   rules:
-  - host: swimie.life
+  - host: api.swimie.life
     http:
 	  paths:
 	  - path: /
@@ -17,3 +20,7 @@ spec:
 		    name: swimie-server
 			port:
 			  number: 80
+  tls:
+    - hosts:
+	  - api.swimie.life
+	  secretName: swimie-cert
